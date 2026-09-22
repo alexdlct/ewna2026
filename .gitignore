@@ -1,1 +1,4 @@
 .env
+signal_processing/logs/*.csv
+__pycache__/
+signal_processing/clips/
