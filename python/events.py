@@ -140,6 +140,16 @@ _SPECS = [
         sms_text="Sound Guardian: ⚡ Possible electrical hazard detected.",
         default_threshold=0.75,
     ),
+    EventSpec(
+    id="loud_sound",
+    display_name="Loud sound",
+    meaning="Sound exceeded the configured volume threshold",
+    acoustic_class="Volume threshold",
+    led_icon="danger",
+    rgb_hint=(255, 170, 0),
+    severity=Severity.MEDIUM,
+    sms_text="Sound Guardian: A loud sound was detected.",
+    default_threshold=0.5,),
 ]
 
 EVENTS: dict[str, EventSpec] = {spec.id: spec for spec in _SPECS}
@@ -202,6 +212,7 @@ _ALIASES = {
     "sparking": "electrical_buzzing_or_sparking",
     "buzzing": "electrical_buzzing_or_sparking",
     "electric_arc": "electrical_buzzing_or_sparking",
+    "loud": "loud_sound",
 }
 
 # Last-resort keyword rules, checked in order. Specific words first so that
