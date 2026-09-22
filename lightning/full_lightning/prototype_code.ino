@@ -14,6 +14,7 @@
 // Test by hand: open Serial Monitor (115200, newline) and type GLASS.
 
 #include <Arduino_LED_Matrix.h>
+#include <Arduino_RouterBridge.h>
 
 Arduino_LED_Matrix matrix;
 
@@ -151,6 +152,7 @@ void animateVoice() {
     matrix.draw(voice1); delay(180);
     matrix.draw(voice2); delay(180);
   }
+  matrix.clear(); 
 }
 
 void animateSteps() {
@@ -202,38 +204,29 @@ void animateSOS() {
 
 void handleEvent(const String &cmd) {
   if      (cmd == "ALARM")   animateSOS();
-  else if (cmd == "LOUD")   animateVoice();
+  else if (cmd == "LOUD")    animateVoice();
   else if (cmd == "FALL")    animateSkull();
   else if (cmd == "STEPS")   animateSteps();
   else if (cmd == "GLASS")   animateShatter();
   else if (cmd == "UNKNOWN") animateUnknown();
   else if (cmd == "IDLE")    matrix.clear();
-  // anything else: ignore
 }
 
-void flushSerial() {
-  // Drop lines that queued up while a (blocking) animation played so we
-  // don't replay stale events after the fact.
-  while (Serial.available()) Serial.read();
+void soundEvent(String cmd) {
+  handleEvent(cmd);
 }
 
 void setup() {
-  Serial.begin(115200);
   matrix.begin();
   matrix.setGrayscaleBits(1);
 
-  // "ready" blink
-  matrix.draw(danger_sign); delay(150);
+  Bridge.begin();
+  Bridge.provide_safe("sound_event", soundEvent);
+
+  matrix.draw(danger_sign);
+  delay(150);
   matrix.clear();
 }
 
 void loop() {
-  if (Serial.available()) {
-    String cmd = Serial.readStringUntil('\n');
-    cmd.trim();
-    if (cmd.length() > 0) {
-      handleEvent(cmd);
-      flushSerial();
-    }
-  }
 }
