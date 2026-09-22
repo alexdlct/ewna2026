@@ -1,4 +1,8 @@
 .env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
 signal_processing/logs/*.csv
 __pycache__/
 signal_processing/clips/

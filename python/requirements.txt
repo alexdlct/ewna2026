@@ -1,0 +1,8 @@
+# Sound Guardian - Linux-side service (Arduino UNO Q)
+requests>=2.31
+python-dotenv>=1.0
+
+# Only needed if the model runs in Python (CLASSIFIER=model). On the board:
+#   sudo apt install libportaudio2
+# numpy>=1.26
+# sounddevice>=0.4
