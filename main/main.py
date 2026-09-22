@@ -3,14 +3,14 @@ import threading
 import queue
 import time
 
-from arduino.app_utils import App
+from arduino.app_utils import App, Bridge
 
 
 HOST = "0.0.0.0"
 PORT = 8765
 
 commands = queue.Queue()
-
+was_loud = False
 
 def command_server():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -55,9 +55,27 @@ def command_server():
 
 
 def handle_command(command):
-    print("COMMAND:", command)
 
-    if command == "VOICE":
+    global was_loud
+
+    if command.startswith("VOL:"):
+        try:
+            volume = float(command.split(":", 1)[1])
+
+            print(f"MIC VOLUME: {volume:.4f}")
+
+            if volume > 0.065:
+                if not was_loud:
+                    print(">>> LOUD -> MCU")
+                    Bridge.notify("sound_event", "LOUD")
+                    was_loud = True
+            else:
+                was_loud = False
+
+        except ValueError:
+            print("Invalid volume:", command)
+
+    elif command == "VOICE":
         print(">>> HUMAN VOICE")
 
     elif command == "GLASS":
@@ -77,7 +95,6 @@ def handle_command(command):
 
     else:
         print(">>> UNKNOWN:", command)
-
 
 def loop():
 
