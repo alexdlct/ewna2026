@@ -202,7 +202,7 @@ void animateSOS() {
 
 void handleEvent(const String &cmd) {
   if      (cmd == "ALARM")   animateSOS();
-  else if (cmd == "VOICE")   animateVoice();
+  else if (cmd == "LOUD")   animateVoice();
   else if (cmd == "FALL")    animateSkull();
   else if (cmd == "STEPS")   animateSteps();
   else if (cmd == "GLASS")   animateShatter();
