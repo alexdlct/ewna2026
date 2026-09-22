@@ -64,7 +64,7 @@ def handle_command(command):
 
             print(f"MIC VOLUME: {volume:.4f}")
 
-            if volume > 0.065:
+            if volume > 0.05:
                 if not was_loud:
                     print(">>> LOUD -> MCU")
                     Bridge.notify("sound_event", "LOUD")
