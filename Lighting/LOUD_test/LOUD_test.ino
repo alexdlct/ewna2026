@@ -18,12 +18,12 @@ void setup() {
   matrix.draw(allOn);
 
   
-  delay(1000);
+  delay(5000);
 
   
   matrix.clear();
 }
 
 void loop() {
-  // 아무것도 하지 않음
+  
 }

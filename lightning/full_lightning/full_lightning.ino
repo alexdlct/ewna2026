@@ -7,33 +7,13 @@ const int COLS = 13;
 
 uint8_t frame[104];
 
-/*
-left arrow
-right arrow
-voice
-water
-danger sign
-lightning
-shatter
-skull
-CO 
-SOS
-*/
+uint8_t allOn[104];
 
-/*
-animateLeft
-animateRight
-animateVoice
-animateWater
-animateDanger
-animateLightning
-animateShatter
-animateSkull
-animateCO
-animateSOS
-
-*/
-
+void initializeAllOn() {
+  for (int i = 0; i < 104; i++) {
+    allOn[i] = 1;
+  }
+}
 
 // ============================================================
 // LEFT ARROW
@@ -477,6 +457,7 @@ skull
 co
 sos
 clear
+LOUD
 */
 
 void handleCommand(String command) {
@@ -562,12 +543,29 @@ void handleCommand(String command) {
 
   }
 
+  else if (command == "loud") {
+
+    Serial.println("LOUD");
+
+    // Turn all LEDs ON
+    matrix.draw(allOn);
+
+    // Keep them ON for 1 second
+    delay(5000);
+
+    // Turn them OFF
+    matrix.clear();
+
+  }
+
   else {
 
     Serial.print("Unknown command: ");
     Serial.println(command);
 
   }
+
+
 }
 
 
@@ -582,6 +580,8 @@ void setup() {
   matrix.begin();
   matrix.setGrayscaleBits(1);
   matrix.clear();
+
+  initializeAllOn();
 
   Serial.println();
   Serial.println("============================");
@@ -600,6 +600,7 @@ void setup() {
   Serial.println("co");
   Serial.println("sos");
   Serial.println("clear");
+  Serial.println("LOUD");
   Serial.println();
 }
 
