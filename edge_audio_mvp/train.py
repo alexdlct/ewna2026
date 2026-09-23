@@ -43,7 +43,12 @@ def load_split(rows, split):
         if r["split"] != split:
             continue
         r = dict(r)
-        r["wave"] = np.load(r["cache"]).astype(np.float32)
+        wave = np.load(r["cache"]).astype(np.float32)
+        if r.get("start_s"):        # a time segment of a long recording
+            a = int(float(r["start_s"]) * C.SAMPLE_RATE)
+            b = int(float(r["end_s"]) * C.SAMPLE_RATE)
+            wave = wave[a:b]
+        r["wave"] = wave
         out.append(r)
     return out
 
@@ -71,10 +76,11 @@ def eval_windows(sources, label_to_idx):
     return items
 
 
-def balanced_weights(label_idx_list, n_classes):
-    """Per-class weight N / (K * n_c) so a weighted accuracy equals balanced accuracy."""
+def balanced_weights(label_idx_list, n_classes, power=1.0):
+    """Per-class weight (N / (K * n_c)) ** power. power=1 makes a weighted
+    accuracy equal balanced accuracy; power<1 tempers the boost given to rare classes."""
     counts = np.bincount(label_idx_list, minlength=n_classes).astype(np.float64)
-    return counts, counts.sum() / (n_classes * np.maximum(counts, 1.0))
+    return counts, (counts.sum() / (n_classes * np.maximum(counts, 1.0))) ** power
 
 
 def train_windows(sources, label_to_idx, rng):
@@ -91,6 +97,13 @@ def train_windows(sources, label_to_idx, rng):
                                              int(C.ENERGY_JITTER_S * C.SAMPLE_RATE) + 1)
                 else:
                     st = rng.integers(0, max(1, n - C.WINDOW_SAMPLES + 1))
+                items.append((i, int(st), label_to_idx[s["label"]]))
+        elif n > C.LONG_SOURCE_S * C.SAMPLE_RATE:
+            # long recording (voice take, LibriSpeech speaker): random windows,
+            # a fresh draw every epoch, instead of thousands of strided ones
+            rate = C.LONG_SOURCE_WINDOWS_PER_S if s["origin"] == "librispeech" else C.CUSTOM_LONG_WINDOWS_PER_S
+            k = max(1, int(n / C.SAMPLE_RATE * rate))
+            for st in rng.integers(0, n - C.WINDOW_SAMPLES + 1, size=k):
                 items.append((i, int(st), label_to_idx[s["label"]]))
         else:
             for st in strided_starts(n, C.CUSTOM_TRAIN_STRIDE_S):
@@ -226,7 +239,11 @@ def main():
     # is true balanced accuracy on validation and not dominated by BACKGROUND.
     rng = np.random.default_rng(args.seed)
     first_epoch = train_windows(train_src, label_to_idx, rng)
-    counts, class_weight = balanced_weights([lab for _, _, lab in first_epoch], n_classes)
+    counts, class_weight = balanced_weights([lab for _, _, lab in first_epoch], n_classes,
+                                            power=C.CLASS_WEIGHT_POWER)
+    for name, boost in C.CLASS_WEIGHT_BOOST.items():
+        if name in label_to_idx:
+            class_weight[label_to_idx[name]] *= boost
     steps = len(first_epoch) // C.BATCH_SIZE
     val_items = eval_windows(val_src, label_to_idx)
     val_counts, val_weight = balanced_weights([lab for _, _, lab in val_items], n_classes)

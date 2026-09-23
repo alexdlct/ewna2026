@@ -2,6 +2,7 @@
 tensorflow>=2.20        # Keras 3 + TFLite converter
 numpy>=1.26
 soundfile>=0.12
+av>=12                  # decodes .m4a / .aac phone voice memos that libsndfile can't
 scikit-learn>=1.3
 matplotlib>=3.8
 

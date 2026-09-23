@@ -119,6 +119,66 @@ def print_report(name, m, labels):
         print(f"{l:>{w}s} " + " ".join(f"{v:6d}" for v in cm[i]))
 
 
+def sweep_thresholds(probs, y, labels, thresholds=(0.5, 0.6, 0.7, 0.8, 0.9)):
+    """How the rejection threshold trades BACKGROUND false positives against
+    recall of each event class. Pick CONFIDENCE_THRESHOLD from this on the
+    validation split, never on test."""
+    pred, conf = probs.argmax(1), probs.max(1)
+    b = labels.index("BACKGROUND") if "BACKGROUND" in labels else None
+    events = [l for l in labels if l != "BACKGROUND"]
+    print(f"\n--- threshold sweep ---\n{'thr':>4s} {'bg FPR':>7s} " +
+          " ".join(f"{l[:9]:>9s}" for l in events) + "   (recall after rejection)")
+    for t in thresholds:
+        keep = conf >= t
+        row = f"{t:4.2f} "
+        if b is not None:
+            bg = y == b
+            row += f"{float(((pred != b) & keep)[bg].mean()):7.3f} " if bg.any() else f"{'-':>7s} "
+        for l in events:
+            i = labels.index(l)
+            m = y == i
+            row += f"{float(((pred == i) & keep)[m].mean()):9.3f} " if m.any() else f"{'-':>9s} "
+        print(row)
+
+
+def simulate_runtime(split, model_path):
+    """Run the real streaming decision logic (infer_wav.EventDecider) over every
+    clip of a split and count ANNOUNCED events. For BACKGROUND clips that is the
+    false-alarm rate per minute, the number a demo actually lives or dies by."""
+    from collections import Counter
+    from features import crop, strided_starts
+    from infer_wav import EventDecider, TFLiteClassifier
+
+    rows, labels = read_manifest()
+    sources = load_split(rows, split)
+    clf = TFLiteClassifier(model_path)
+    settings = [(t, imm) for t in (0.6, 0.7, 0.8) for imm in (0.9, 1.01)]
+    print(f"\n--- runtime simulation on {split} ({model_path.name}) ---")
+    print("thr / transient-immediate   bg false announcements per min   detected clips per class")
+    for thr, imm in settings:
+        C.TRANSIENT_IMMEDIATE_CONFIDENCE = imm
+        false_n, bg_secs, hits = 0, 0.0, Counter()
+        totals = Counter(s["label"] for s in sources)
+        for s in sources:
+            decider = EventDecider(labels, thr)
+            got = set()
+            for st in strided_starts(len(s["wave"]), C.STRIDE_S):
+                probs, _ = clf.predict_window(crop(s["wave"], st))
+                d = decider.update(probs, st / C.SAMPLE_RATE)
+                if d.announce:
+                    got.add(d.event)
+            if s["label"] == "BACKGROUND":
+                false_n += len(got)
+                bg_secs += len(s["wave"]) / C.SAMPLE_RATE
+            elif s["label"] in got:
+                hits[s["label"]] += 1
+        per_min = false_n / (bg_secs / 60) if bg_secs else float("nan")
+        imm_txt = "off" if imm > 1 else f"{imm:.2f}"
+        det = "  ".join(f"{l[:5]} {hits[l]}/{totals[l]}" for l in labels if l != "BACKGROUND" and totals[l])
+        print(f"{thr:.2f} / {imm_txt:4s}   {per_min:8.1f}                         {det}")
+    C.TRANSIENT_IMMEDIATE_CONFIDENCE = 0.90
+
+
 def plot_confusions(results, labels, path):
     import matplotlib
     matplotlib.use("Agg")
@@ -148,6 +208,9 @@ def main():
     ap.add_argument("--split", choices=["test", "val"], default="test")
     ap.add_argument("--models", default="keras,float,int8", help="comma list of keras,float,int8")
     ap.add_argument("--threshold", type=float, default=C.CONFIDENCE_THRESHOLD)
+    ap.add_argument("--sweep", action="store_true", help="print FPR / recall for several thresholds")
+    ap.add_argument("--simulate", action="store_true",
+                    help="run the streaming decider over every clip: false announcements per minute")
     args = ap.parse_args()
 
     X, y, labels, speakers = collect(args.split)
@@ -163,10 +226,14 @@ def main():
             print(f"skipping {name}: {path} not found")
             continue
         probs, ms = predict_keras(X) if name == "keras" else predict_tflite(X, path)
+        from infer_wav import apply_prior
+        probs = apply_prior(probs, labels)          # same deployment prior the decider uses
         m = metrics(probs, y, labels, args.threshold)
         m["inference_ms"] = ms
         results[name] = m
         print_report(name, m, labels)
+        if args.sweep:
+            sweep_thresholds(probs, y, labels)
     if not results:
         raise SystemExit("no models evaluated")
 
@@ -176,6 +243,8 @@ def main():
                "unfamiliar_voice_speakers": speakers, "models": results}
     C.METRICS_JSON.write_text(json.dumps(payload, indent=2))
     print(f"\nwrote {C.METRICS_JSON}\nwrote {C.CONFUSION_PNG}")
+    if args.simulate and "int8" in results:
+        simulate_runtime(args.split, C.MODEL_INT8_TFLITE)
 
 
 if __name__ == "__main__":

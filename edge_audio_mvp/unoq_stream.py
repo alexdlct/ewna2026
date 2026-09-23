@@ -97,7 +97,7 @@ def handle(d, level, ms, log, ser):
     if not d.announce:
         return
     guardian = C.SOUND_GUARDIAN_EVENT.get(d.event)
-    print(f"[event] {d.event:16s} conf={d.confidence:.2f} 2nd={d.top2_label}:{d.top2_confidence:.2f} "
+    print(f"[event] {d.event:16s} conf={d.confidence:.2f} ({d.level}) 2nd={d.top2_label}:{d.top2_confidence:.2f} "
           f"rms={level:.3f} {ms:.0f}ms" + (f"  -> {guardian}" if guardian else ""))
     msg = C.SERIAL_EVENT.get(d.event)
     if ser is not None and msg:

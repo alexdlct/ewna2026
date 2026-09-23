@@ -3,178 +3,251 @@
   "classes": [
     "BACKGROUND",
     "GLASS_BREAK",
-    "ALARM"
+    "ALARM",
+    "LOUD_THUD",
+    "KNOWN_VOICE",
+    "UNFAMILIAR_VOICE"
   ],
-  "n_windows": 530,
-  "unfamiliar_voice_speakers": [],
+  "n_windows": 1732,
+  "unfamiliar_voice_speakers": [
+    "e",
+    "libri174",
+    "libri2086",
+    "libri2277",
+    "libri7976"
+  ],
   "models": {
-    "keras": {
-      "n_windows": 530,
-      "accuracy": 0.8603773584905661,
-      "macro_f1": 0.6828395318115478,
-      "per_class": {
-        "BACKGROUND": {
-          "precision": 0.9973404255319149,
-          "recall": 0.8370535714285714,
-          "f1": 0.9101941747572816,
-          "support": 448
-        },
-        "GLASS_BREAK": {
-          "precision": 0.17857142857142858,
-          "recall": 1.0,
-          "f1": 0.30303030303030304,
-          "support": 10
-        },
-        "ALARM": {
-          "precision": 0.7244897959183674,
-          "recall": 0.9861111111111112,
-          "f1": 0.8352941176470589,
-          "support": 72
-        }
-      },
-      "confusion_matrix": [
-        [
-          375,
-          46,
-          27
-        ],
-        [
-          0,
-          10,
-          0
-        ],
-        [
-          1,
-          0,
-          71
-        ]
-      ],
-      "confusion_labels": [
-        "BACKGROUND",
-        "GLASS_BREAK",
-        "ALARM"
-      ],
-      "rejection_threshold": 0.6,
-      "unknown_rate": 0.08867924528301886,
-      "background_fpr": 0.16294642857142858,
-      "background_fpr_with_rejection": 0.13169642857142858,
-      "key_confusions": {
-        "ALARM->BACKGROUND": 1,
-        "BACKGROUND->ALARM": 27
-      },
-      "inference_ms": null
-    },
     "float": {
-      "n_windows": 530,
-      "accuracy": 0.8603773584905661,
-      "macro_f1": 0.6828395318115478,
+      "n_windows": 1732,
+      "accuracy": 0.9133949191685913,
+      "macro_f1": 0.6938034582702571,
       "per_class": {
         "BACKGROUND": {
-          "precision": 0.9973404255319149,
-          "recall": 0.8370535714285714,
-          "f1": 0.9101941747572816,
-          "support": 448
+          "precision": 0.9764201500535906,
+          "recall": 0.8896484375,
+          "f1": 0.9310168625447113,
+          "support": 1024
         },
         "GLASS_BREAK": {
-          "precision": 0.17857142857142858,
+          "precision": 0.19230769230769232,
           "recall": 1.0,
-          "f1": 0.30303030303030304,
+          "f1": 0.3225806451612903,
           "support": 10
         },
         "ALARM": {
-          "precision": 0.7244897959183674,
-          "recall": 0.9861111111111112,
-          "f1": 0.8352941176470589,
+          "precision": 0.6753246753246753,
+          "recall": 0.7222222222222222,
+          "f1": 0.697986577181208,
           "support": 72
+        },
+        "LOUD_THUD": {
+          "precision": 0.3103448275862069,
+          "recall": 0.9473684210526315,
+          "f1": 0.4675324675324675,
+          "support": 19
+        },
+        "KNOWN_VOICE": {
+          "precision": 0.7692307692307693,
+          "recall": 0.75,
+          "f1": 0.759493670886076,
+          "support": 40
+        },
+        "UNFAMILIAR_VOICE": {
+          "precision": 0.9790575916230366,
+          "recall": 0.9894179894179894,
+          "f1": 0.9842105263157894,
+          "support": 567
         }
       },
       "confusion_matrix": [
         [
-          375,
-          46,
-          27
+          911,
+          42,
+          25,
+          38,
+          6,
+          2
         ],
         [
           0,
           10,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          20,
+          0,
+          52,
+          0,
+          0,
           0
         ],
         [
           1,
           0,
-          71
+          0,
+          18,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          30,
+          10
+        ],
+        [
+          1,
+          0,
+          0,
+          2,
+          3,
+          561
         ]
       ],
       "confusion_labels": [
         "BACKGROUND",
         "GLASS_BREAK",
-        "ALARM"
+        "ALARM",
+        "LOUD_THUD",
+        "KNOWN_VOICE",
+        "UNFAMILIAR_VOICE"
       ],
-      "rejection_threshold": 0.6,
-      "unknown_rate": 0.08867924528301886,
-      "background_fpr": 0.16294642857142858,
-      "background_fpr_with_rejection": 0.13169642857142858,
+      "rejection_threshold": 0.7,
+      "unknown_rate": 0.13337182448036952,
+      "background_fpr": 0.1103515625,
+      "background_fpr_with_rejection": 0.0498046875,
       "key_confusions": {
-        "ALARM->BACKGROUND": 1,
-        "BACKGROUND->ALARM": 27
+        "GLASS_BREAK->LOUD_THUD": 0,
+        "LOUD_THUD->GLASS_BREAK": 0,
+        "ALARM->BACKGROUND": 20,
+        "BACKGROUND->ALARM": 25,
+        "KNOWN_VOICE->UNFAMILIAR_VOICE": 10,
+        "UNFAMILIAR_VOICE->KNOWN_VOICE": 3,
+        "LOUD_THUD->BACKGROUND": 1,
+        "BACKGROUND->LOUD_THUD": 38
       },
-      "inference_ms": 0.2006028301383474
+      "inference_ms": 0.40085640887223833
     },
     "int8": {
-      "n_windows": 530,
-      "accuracy": 0.8471698113207548,
-      "macro_f1": 0.6652852742453865,
+      "n_windows": 1732,
+      "accuracy": 0.9145496535796767,
+      "macro_f1": 0.6957677198384234,
       "per_class": {
         "BACKGROUND": {
-          "precision": 0.9893617021276596,
-          "recall": 0.8303571428571429,
-          "f1": 0.9029126213592233,
-          "support": 448
+          "precision": 0.9754535752401281,
+          "recall": 0.892578125,
+          "f1": 0.9321774604793472,
+          "support": 1024
         },
         "GLASS_BREAK": {
-          "precision": 0.16666666666666666,
+          "precision": 0.20833333333333334,
           "recall": 1.0,
-          "f1": 0.2857142857142857,
+          "f1": 0.3448275862068966,
           "support": 10
         },
         "ALARM": {
-          "precision": 0.7127659574468085,
-          "recall": 0.9305555555555556,
-          "f1": 0.8072289156626506,
+          "precision": 0.6842105263157895,
+          "recall": 0.7222222222222222,
+          "f1": 0.7027027027027027,
           "support": 72
+        },
+        "LOUD_THUD": {
+          "precision": 0.2903225806451613,
+          "recall": 0.9473684210526315,
+          "f1": 0.4444444444444444,
+          "support": 19
+        },
+        "KNOWN_VOICE": {
+          "precision": 0.7560975609756098,
+          "recall": 0.775,
+          "f1": 0.7654320987654321,
+          "support": 40
+        },
+        "UNFAMILIAR_VOICE": {
+          "precision": 0.9841549295774648,
+          "recall": 0.9858906525573192,
+          "f1": 0.9850220264317181,
+          "support": 567
         }
       },
       "confusion_matrix": [
         [
-          372,
-          49,
-          27
+          914,
+          38,
+          24,
+          41,
+          6,
+          1
         ],
         [
           0,
           10,
+          0,
+          0,
+          0,
           0
         ],
         [
-          4,
+          20,
+          0,
+          52,
+          0,
+          0,
+          0
+        ],
+        [
           1,
-          67
+          0,
+          0,
+          18,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          31,
+          8
+        ],
+        [
+          1,
+          0,
+          0,
+          3,
+          4,
+          559
         ]
       ],
       "confusion_labels": [
         "BACKGROUND",
         "GLASS_BREAK",
-        "ALARM"
+        "ALARM",
+        "LOUD_THUD",
+        "KNOWN_VOICE",
+        "UNFAMILIAR_VOICE"
       ],
-      "rejection_threshold": 0.6,
-      "unknown_rate": 0.08867924528301886,
-      "background_fpr": 0.16964285714285715,
-      "background_fpr_with_rejection": 0.12946428571428573,
+      "rejection_threshold": 0.7,
+      "unknown_rate": 0.1264434180138568,
+      "background_fpr": 0.107421875,
+      "background_fpr_with_rejection": 0.05078125,
       "key_confusions": {
-        "ALARM->BACKGROUND": 4,
-        "BACKGROUND->ALARM": 27
+        "GLASS_BREAK->LOUD_THUD": 0,
+        "LOUD_THUD->GLASS_BREAK": 0,
+        "ALARM->BACKGROUND": 20,
+        "BACKGROUND->ALARM": 24,
+        "KNOWN_VOICE->UNFAMILIAR_VOICE": 8,
+        "UNFAMILIAR_VOICE->KNOWN_VOICE": 4,
+        "LOUD_THUD->BACKGROUND": 1,
+        "BACKGROUND->LOUD_THUD": 41
       },
-      "inference_ms": 0.39536075470645093
+      "inference_ms": 0.6537640876420096
     }
   }
 }

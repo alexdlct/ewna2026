@@ -25,11 +25,39 @@ def resample(x, sr_in, sr_out=C.SAMPLE_RATE):
     return (np.fft.irfft(out, n_out) * (n_out / n_in)).astype(np.float32)
 
 
+def _load_with_av(path):
+    """Decode formats libsndfile can't (m4a / aac / mp4 voice memos) via PyAV."""
+    try:
+        import av
+    except ImportError:
+        raise RuntimeError(f"{path}: not a WAV/FLAC/OGG/MP3 and PyAV is not installed "
+                           f"(pip install av) - or convert the file to WAV")
+    chunks = []
+    with av.open(str(path)) as container:
+        stream = container.streams.audio[0]
+        sr = stream.rate
+        for frame in container.decode(stream):
+            arr = frame.to_ndarray()                 # [channels, samples] or [1, samples*ch]
+            if frame.format.is_planar:
+                arr = arr.astype(np.float32)
+            else:
+                arr = arr.reshape(-1, len(frame.layout.channels)).T.astype(np.float32)
+            if np.issubdtype(frame.to_ndarray().dtype, np.integer):
+                arr /= np.iinfo(frame.to_ndarray().dtype).max
+            chunks.append(arr)
+    data = np.concatenate(chunks, axis=1)
+    # hot phone recordings decode slightly above full scale; keep everything in [-1, 1]
+    return np.clip(data.mean(axis=0), -1.0, 1.0), sr
+
+
 def load_audio(path):
     """Read any audio file -> mono float32 at SAMPLE_RATE. Originals are never modified."""
     import soundfile as sf
-    data, sr = sf.read(str(path), dtype="float32", always_2d=True)
-    x = data.mean(axis=1)
+    try:
+        data, sr = sf.read(str(path), dtype="float32", always_2d=True)
+        x = data.mean(axis=1)
+    except Exception:  # noqa: BLE001  (libsndfile: "Format not recognised")
+        x, sr = _load_with_av(path)
     return resample(x, sr)
 
 

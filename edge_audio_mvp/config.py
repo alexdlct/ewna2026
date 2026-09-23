@@ -14,6 +14,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 DEFAULT_ESC50_ROOT = ROOT.parent / "dataset" / "ESC-50-master"
 DEFAULT_CUSTOM_ROOT = ROOT / "custom_data"
+# LibriSpeech (CC BY 4.0, openslr.org/12): many read-speech speakers used as
+# UNFAMILIAR_VOICE so the model learns "not the enrolled person" in general,
+# instead of the two or three teammates it would otherwise memorize.
+DEFAULT_LIBRISPEECH_ROOT = ROOT.parent / "dataset" / "LibriSpeech"   # contains LibriSpeech/dev-clean/...
+LIBRI_MAX_S_PER_SPEAKER = 120.0     # cap per speaker (keeps the cache and epochs small)
+LIBRI_SPEAKERS_VAL = 4              # whole speakers held out for validation ...
+LIBRI_SPEAKERS_TEST = 4             # ... and for test (plus any held-out custom speaker)
 
 # EDGE_AUDIO_ARTIFACTS lets you keep several experiments side by side; the
 # standardized-audio cache is data-derived, not experiment-derived, so it is
@@ -52,10 +59,17 @@ ESC50_POSITIVE = {
     "siren": "ALARM",
 }
 ESC50_BACKGROUND = [
+    # the spec's core negatives
     "door_wood_knock", "door_wood_creaks", "footsteps", "fireworks",
     "thunderstorm", "clock_tick", "vacuum_cleaner", "washing_machine",
     "keyboard_typing", "clapping", "coughing", "laughing",
     "pouring_water", "water_drops",
+    # extra hard negatives: home sounds, non-speech human sounds, tonal and
+    # impulsive things that were being mistaken for glass / alarm
+    "dog", "cat", "crying_baby", "sneezing", "breathing", "snoring",
+    "drinking_sipping", "brushing_teeth", "toilet_flush", "can_opening",
+    "mouse_click", "church_bells", "car_horn", "rain", "wind",
+    "crackling_fire", "engine", "hand_saw",
 ]
 ESC_TEST_FOLD = 5        # official fold held out for test
 ESC_VAL_FOLD = 4         # of the remaining folds, this one is validation
@@ -73,6 +87,8 @@ CUSTOM_SPLIT = (0.70, 0.15, 0.15)   # train / val / test, by SOURCE RECORDING
 SPLIT_SEED = 42
 UNFAMILIAR_TEST_SPEAKER = None      # sub-folder name to hold out entirely; None = last one alphabetically
 MIN_SPEAKERS_FOR_HOLDOUT = 3
+LONG_SOURCE_SPLIT_S = 45.0          # a single recording longer than this is split by TIME into
+                                    # contiguous train / val / test segments (no window straddles a cut)
 
 # ---------------------------------------------------------------------------
 # Audio / features
@@ -94,18 +110,29 @@ LOG_EPS = 1e-6
 # ---------------------------------------------------------------------------
 # Windowing
 # ---------------------------------------------------------------------------
-ESC_TRAIN_CROPS = {"positive": 8, "background": 2}   # random 2 s crops per 5 s clip per epoch
+ESC_TRAIN_CROPS = {"positive": 10, "background": 4}  # random 2 s crops per 5 s clip per epoch
+CLASS_WEIGHT_POWER = 0.5     # 1.0 = fully balanced class weights (max recall on rare classes, poor
+                             # precision); 0.5 = square root, keeps BACKGROUND from being under-weighted
+CLASS_WEIGHT_BOOST = {       # extra multiplier on top of that for specific classes, e.g.
+}                            # {"KNOWN_VOICE": 2.0} (one speaker vs 40+ unfamiliar). The shipped
+                             # model was trained without it; CLASS_PRIOR handles the imbalance at runtime.
 ENERGY_BIAS_PROB = 0.5                               # fraction of crops centred on the loudest moment
 ENERGY_JITTER_S = 0.5
-CUSTOM_TRAIN_STRIDE_S = 0.5                          # overlapping windows from custom recordings
+CUSTOM_TRAIN_STRIDE_S = 0.25                         # overlapping windows from short custom clips
+LONG_SOURCE_S = 10.0                                 # recordings longer than this instead get random
+LONG_SOURCE_WINDOWS_PER_S = 0.5                      # 2 s windows per second per epoch (LibriSpeech rate)
+CUSTOM_LONG_WINDOWS_PER_S = 2.0                      # our own long takes get 4x that, so the phone/room
+                                                     # channel is well represented on BOTH sides of
+                                                     # known-vs-unfamiliar (otherwise "phone" = "known")
 EVAL_STRIDE_S = 1.0                                  # deterministic windows for val / test
 EVAL_POSITIVE_ENERGY_RATIO = 0.5                     # ESC positives: keep windows with >= this x the loudest window's RMS
 
 # ---------------------------------------------------------------------------
 # Model
 # ---------------------------------------------------------------------------
-STEM_CHANNELS = 16
-BLOCK_CHANNELS = [(32, 1), (64, 2), (96, 2), (128, 2)]   # (pointwise channels, depthwise stride)
+STEM_CHANNELS = 24                                         # spec baseline was 16 / 32-64-96-128;
+BLOCK_CHANNELS = [(48, 1), (96, 2), (144, 2), (192, 2)]    # widened x1.5 (~53k params) = the shipped model.
+                                                           # x2 (32 / 64-128-192-256, ~92k) was tried, not finished.
 DROPOUT = 0.2
 MAX_PARAMS = 3_000_000
 
@@ -116,7 +143,7 @@ BATCH_SIZE = 32
 EPOCHS = 50
 LEARNING_RATE = 1e-3
 WEIGHT_DECAY = 1e-4
-EARLY_STOP_PATIENCE = 8
+EARLY_STOP_PATIENCE = 12
 REDUCE_LR_PATIENCE = 3
 REDUCE_LR_FACTOR = 0.5
 
@@ -143,7 +170,22 @@ INT8_MAX_ACCURACY_DROP = 0.01       # acceptance: <= 1 percentage point
 # ---------------------------------------------------------------------------
 # Inference / temporal confirmation
 # ---------------------------------------------------------------------------
-CONFIDENCE_THRESHOLD = 0.60         # below this -> UNKNOWN (tune from validation)
+CONFIDENCE_THRESHOLD = 0.70         # below this -> UNKNOWN. Chosen from `evaluate.py --sweep --simulate`:
+                                    # 0.6 = 1.2 false announcements/min on ESC-50 background, 0.7 = 0.4,
+                                    # 0.8 = 0.2 but loses 2 of 8 glass clips. Calibration: windows >= 0.8
+                                    # are right 97-100 % of the time, 0.7-0.8 about 2/3 (the 2-of-3 rule covers it).
+CLASS_PRIOR = {                     # deployment prior multiplied into the probabilities before the
+    "KNOWN_VOICE": 3.0,             # argmax / threshold. Training has ~6x more stranger speech than
+}                                   # known-voice speech; at home the enrolled voice is by far the most
+                                    # common. Validated on the shipped model: known-voice recall
+                                    # 0.75 -> 0.88 (val), 0.50 -> 0.78 (test); 0 of 91 windows of the
+                                    # held-out phone-recorded stranger flipped to KNOWN, 4 of 567 overall.
+                                    # Re-check with the prior sweep after every retrain.
+CONFIDENCE_LEVELS = [               # human-readable tier for a confidence value, checked top-down
+    (0.95, "HIGH"),
+    (0.85, "MEDIUM"),
+    (0.00, "LOW"),                  # anything that passed CONFIDENCE_THRESHOLD but is below MEDIUM
+]
 HISTORY = 3                         # keep last N window predictions
 CONFIRM_AGREE = 2                   # sustained classes: N of HISTORY must agree
 TRANSIENT_IMMEDIATE_CONFIDENCE = 0.90

@@ -83,6 +83,28 @@ class TFLiteClassifier:
 
 
 # ---------------------------------------------------------------------------
+def apply_prior(probs, labels):
+    """Multiply config.CLASS_PRIOR into the probabilities and renormalize.
+    Works on one vector or a [n, classes] array. Identity when no prior is set."""
+    q = np.asarray(probs, dtype=np.float32).copy()
+    changed = False
+    for name, factor in C.CLASS_PRIOR.items():
+        if name in labels and factor != 1.0:
+            q[..., labels.index(name)] *= factor
+            changed = True
+    if changed:
+        q /= np.maximum(q.sum(axis=-1, keepdims=True), 1e-9)
+    return q
+
+
+def confidence_level(confidence):
+    """Map a probability to the tier names in config.CONFIDENCE_LEVELS (HIGH / MEDIUM / LOW)."""
+    for floor, name in C.CONFIDENCE_LEVELS:
+        if confidence >= floor:
+            return name
+    return C.CONFIDENCE_LEVELS[-1][1]
+
+
 @dataclass
 class Decision:
     t: float
@@ -93,8 +115,13 @@ class Decision:
     event: Optional[str]     # confirmed class for this window, or None
     announce: bool           # event confirmed and not inside its cooldown
 
+    @property
+    def level(self):
+        """HIGH / MEDIUM / LOW tier of this window's confidence."""
+        return confidence_level(self.confidence)
+
     def __str__(self):
-        s = f"{self.t:7.2f}s  {self.label:16s} {self.confidence:.2f}  (2nd {self.top2_label} {self.top2_confidence:.2f})"
+        s = f"{self.t:7.2f}s  {self.label:16s} {self.confidence:.2f} {self.level:6s} (2nd {self.top2_label} {self.top2_confidence:.2f})"
         if self.event:
             s += f"  -> {self.event}" + ("  ANNOUNCE" if self.announce else "")
         return s
@@ -115,6 +142,7 @@ class EventDecider:
         self.last_announced = {}
 
     def update(self, probs, t):
+        probs = apply_prior(probs, self.labels)
         order = np.argsort(probs)[::-1]
         label, conf = self.labels[order[0]], float(probs[order[0]])
         top2 = (self.labels[order[1]], float(probs[order[1]])) if len(order) > 1 else ("", 0.0)
@@ -173,7 +201,7 @@ def main():
     print(f"\n{len(x)/C.SAMPLE_RATE:.1f} s, {len(decisions)} windows, "
           f"inference {np.mean(ms):.1f} ms/window (max {np.max(ms):.1f})")
     if events:
-        print("events: " + ", ".join(f"{d.event}@{d.t:.1f}s({d.confidence:.2f})" for d in events))
+        print("events: " + ", ".join(f"{d.event}@{d.t:.1f}s({d.confidence:.2f} {d.level})" for d in events))
     else:
         top = max(decisions, key=lambda z: z[0].confidence)[0]
         print(f"no confirmed event; most confident window was {top.label} {top.confidence:.2f} at {top.t:.1f}s")
