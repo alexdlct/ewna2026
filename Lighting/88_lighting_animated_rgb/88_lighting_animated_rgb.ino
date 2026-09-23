@@ -66,6 +66,21 @@ const uint8_t bat_symbol[64] = {
   0,0,0,1,1,0,0,0
 };
 
+// ============================================================
+// QUESTION MARK
+// ============================================================
+
+const uint8_t question_mark[64] = {
+  0,1,1,1,1,1,0,0,
+  1,1,0,0,0,1,1,0,
+  0,0,0,0,0,1,1,0,
+  0,0,0,0,1,1,0,0,
+  0,0,0,1,1,0,0,0,
+  0,0,0,1,0,0,0,0,
+  0,0,0,0,0,0,0,0,
+  0,0,0,1,0,0,0,0
+};
+
 // LEFT ARROW
 const uint8_t arrow_left[64] = {
   0,0,0,1,0,0,0,0,
@@ -352,6 +367,22 @@ void drawShifted(
   }
 
   matrix.show();
+}
+
+// ============================================================
+// QUESTION MARK
+// ============================================================
+
+void animateQuestionMark() {
+
+  drawPattern(
+    question_mark,
+    PURPLE
+  );
+
+  delay(1500);
+
+  clearMatrix();
 }
 
 
@@ -939,6 +970,12 @@ void handleEvent(String command) {
   ) {
 
     clearMatrix();
+  }
+
+  // QUESTION MARK
+  else if (command == "QUESTION_MARK") {
+
+    animateQuestionMark();
   }
 
 
