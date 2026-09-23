@@ -1,0 +1,180 @@
+{
+  "split": "test",
+  "classes": [
+    "BACKGROUND",
+    "GLASS_BREAK",
+    "ALARM"
+  ],
+  "n_windows": 530,
+  "unfamiliar_voice_speakers": [],
+  "models": {
+    "keras": {
+      "n_windows": 530,
+      "accuracy": 0.8603773584905661,
+      "macro_f1": 0.6828395318115478,
+      "per_class": {
+        "BACKGROUND": {
+          "precision": 0.9973404255319149,
+          "recall": 0.8370535714285714,
+          "f1": 0.9101941747572816,
+          "support": 448
+        },
+        "GLASS_BREAK": {
+          "precision": 0.17857142857142858,
+          "recall": 1.0,
+          "f1": 0.30303030303030304,
+          "support": 10
+        },
+        "ALARM": {
+          "precision": 0.7244897959183674,
+          "recall": 0.9861111111111112,
+          "f1": 0.8352941176470589,
+          "support": 72
+        }
+      },
+      "confusion_matrix": [
+        [
+          375,
+          46,
+          27
+        ],
+        [
+          0,
+          10,
+          0
+        ],
+        [
+          1,
+          0,
+          71
+        ]
+      ],
+      "confusion_labels": [
+        "BACKGROUND",
+        "GLASS_BREAK",
+        "ALARM"
+      ],
+      "rejection_threshold": 0.6,
+      "unknown_rate": 0.08867924528301886,
+      "background_fpr": 0.16294642857142858,
+      "background_fpr_with_rejection": 0.13169642857142858,
+      "key_confusions": {
+        "ALARM->BACKGROUND": 1,
+        "BACKGROUND->ALARM": 27
+      },
+      "inference_ms": null
+    },
+    "float": {
+      "n_windows": 530,
+      "accuracy": 0.8603773584905661,
+      "macro_f1": 0.6828395318115478,
+      "per_class": {
+        "BACKGROUND": {
+          "precision": 0.9973404255319149,
+          "recall": 0.8370535714285714,
+          "f1": 0.9101941747572816,
+          "support": 448
+        },
+        "GLASS_BREAK": {
+          "precision": 0.17857142857142858,
+          "recall": 1.0,
+          "f1": 0.30303030303030304,
+          "support": 10
+        },
+        "ALARM": {
+          "precision": 0.7244897959183674,
+          "recall": 0.9861111111111112,
+          "f1": 0.8352941176470589,
+          "support": 72
+        }
+      },
+      "confusion_matrix": [
+        [
+          375,
+          46,
+          27
+        ],
+        [
+          0,
+          10,
+          0
+        ],
+        [
+          1,
+          0,
+          71
+        ]
+      ],
+      "confusion_labels": [
+        "BACKGROUND",
+        "GLASS_BREAK",
+        "ALARM"
+      ],
+      "rejection_threshold": 0.6,
+      "unknown_rate": 0.08867924528301886,
+      "background_fpr": 0.16294642857142858,
+      "background_fpr_with_rejection": 0.13169642857142858,
+      "key_confusions": {
+        "ALARM->BACKGROUND": 1,
+        "BACKGROUND->ALARM": 27
+      },
+      "inference_ms": 0.2006028301383474
+    },
+    "int8": {
+      "n_windows": 530,
+      "accuracy": 0.8471698113207548,
+      "macro_f1": 0.6652852742453865,
+      "per_class": {
+        "BACKGROUND": {
+          "precision": 0.9893617021276596,
+          "recall": 0.8303571428571429,
+          "f1": 0.9029126213592233,
+          "support": 448
+        },
+        "GLASS_BREAK": {
+          "precision": 0.16666666666666666,
+          "recall": 1.0,
+          "f1": 0.2857142857142857,
+          "support": 10
+        },
+        "ALARM": {
+          "precision": 0.7127659574468085,
+          "recall": 0.9305555555555556,
+          "f1": 0.8072289156626506,
+          "support": 72
+        }
+      },
+      "confusion_matrix": [
+        [
+          372,
+          49,
+          27
+        ],
+        [
+          0,
+          10,
+          0
+        ],
+        [
+          4,
+          1,
+          67
+        ]
+      ],
+      "confusion_labels": [
+        "BACKGROUND",
+        "GLASS_BREAK",
+        "ALARM"
+      ],
+      "rejection_threshold": 0.6,
+      "unknown_rate": 0.08867924528301886,
+      "background_fpr": 0.16964285714285715,
+      "background_fpr_with_rejection": 0.12946428571428573,
+      "key_confusions": {
+        "ALARM->BACKGROUND": 4,
+        "BACKGROUND->ALARM": 27
+      },
+      "inference_ms": 0.39536075470645093
+    }
+  }
+}
