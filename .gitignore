@@ -27,3 +27,4 @@ edge_audio_mvp/custom_data/**/*.m4a
 edge_audio_mvp/artifacts/cache/
 edge_audio_mvp/artifacts/manifest.csv
 edge_audio_mvp/logs/*.csv
+python/edge_audio/logs/*.csv

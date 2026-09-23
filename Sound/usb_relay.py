@@ -49,21 +49,29 @@ while True:
         # Connect to App Lab
         sock = connect()
 
+        forwarded = 0
+        last_report = time.time()
+
         while True:
 
             # Read bytes coming from Mac
             data = os.read(
                 fd,
-                1024
+                4096
             )
 
             if not data:
                 continue
 
-            print(
-                "USB:",
-                repr(data)
-            )
+            # With audio frames (AUD: lines) this is ~43 KB/s; printing every
+            # chunk would flood the console, so report a running total instead.
+            forwarded += len(data)
+
+            if time.time() - last_report >= 5:
+                print(
+                    f"USB -> App Lab: {forwarded / 1024:.0f} KB forwarded"
+                )
+                last_report = time.time()
 
             # Forward exact bytes to App Lab
             try:

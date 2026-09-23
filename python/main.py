@@ -3,16 +3,29 @@
 Sound Guardian - Arduino UNO Q
 
 Mac microphone:
-    Mac -> USB relay -> TCP :8765 -> main.py
+    Mac (Sound/audio_sender.py) -> USB serial -> Sound/usb_relay.py -> TCP :8765 -> main.py
 
-When volume exceeds LOUD_THRESHOLD:
-    1. Bridge.notify("sound_event", "LOUD") -> MCU -> animateVoice()
-    2. AlertManager.handle_detection("loud", 1.0) -> notification
+Two line protocols arrive on that socket:
+
+    AUD:<base64 int16 PCM, 16 kHz, 0.25 s>   audio for the on-board classifier
+        -> StreamFedClassifier (TinyAudioNet, edge_audio/) classifies a 2 s
+           window every 0.5 s; a CONFIRMED detection becomes
+           AlertManager.handle_detection(event_id, confidence) -> LED + SMS
+        (needs CLASSIFIER=stream; frames are ignored otherwise)
+
+    VOL:<rms>                                 legacy volume detector
+        -> above LOUD_THRESHOLD: Bridge.notify("sound_event", "LOUD") and
+           AlertManager.handle_detection("loud", 1.0)
+
+`python main.py --replay-wav clip.wav --dry-run` pushes a WAV through the AUD:
+path on a laptop, so the whole container side can be tested without the Mac
+relay or the board.
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
 import logging
 import queue
 import signal
@@ -23,7 +36,7 @@ import time
 from typing import Optional
 
 from alert_manager import AlertManager
-from classifier import BaseClassifier, ModelClassifier, ScriptedClassifier
+from classifier import BaseClassifier, ModelClassifier, ScriptedClassifier, StreamFedClassifier
 from config import Settings, configure_logging
 from events import describe_events
 from led_bridge import LedMatrixClient
@@ -50,9 +63,37 @@ PORT = 8765
 
 LOUD_THRESHOLD = 0.8
 
+# AUD: frames: 16 kHz mono int16, one line per AUDIO_BLOCK_S (audio_sender.py)
+AUDIO_SAMPLE_RATE = 16_000
+AUDIO_BLOCK_S = 0.25
+
 commands = queue.Queue()
 
 was_loud = False
+
+# Set by make_classifier() when CLASSIFIER=stream; handle_command() feeds it.
+stream_classifier: Optional[StreamFedClassifier] = None
+_audio_frames_ignored = False
+
+
+# =============================================================================
+# AUDIO FRAMES (AUD: lines)
+# =============================================================================
+
+def encode_audio_frame(samples) -> str:
+    """float32 samples in [-1, 1] -> 'AUD:<base64 int16>' (what audio_sender.py sends)."""
+    import numpy as np
+
+    pcm = (np.clip(np.asarray(samples, dtype=np.float32), -1.0, 1.0) * 32767).astype("<i2")
+    return "AUD:" + base64.b64encode(pcm.tobytes()).decode("ascii")
+
+
+def decode_audio_frame(command: str):
+    """'AUD:<base64 int16>' -> float32 samples in [-1, 1]."""
+    import numpy as np
+
+    raw = base64.b64decode(command[4:], validate=True)
+    return np.frombuffer(raw, dtype="<i2").astype(np.float32) / 32768.0
 
 
 # =============================================================================
@@ -215,7 +256,42 @@ def handle_command(
     manager: AlertManager
 ):
 
-    global was_loud
+    global was_loud, _audio_frames_ignored
+
+    # -------------------------------------------------------------------------
+    # MICROPHONE AUDIO -> ON-BOARD CLASSIFIER
+    # -------------------------------------------------------------------------
+
+    if command.startswith("AUD:"):
+
+        if stream_classifier is None:
+
+            if not _audio_frames_ignored:
+                log.warning(
+                    "Audio frames are arriving but CLASSIFIER is not 'stream'; "
+                    "ignoring them (set CLASSIFIER=stream to classify on the board)"
+                )
+                _audio_frames_ignored = True
+
+            return
+
+        try:
+            samples = decode_audio_frame(command)
+
+        except Exception:
+            log.warning(
+                "Invalid audio frame (%d chars)",
+                len(command)
+            )
+            return
+
+        if not stream_classifier.push(samples):
+            log.debug(
+                "Audio frame dropped (classifier backlog %d)",
+                stream_classifier.backlog()
+            )
+
+        return
 
     # -------------------------------------------------------------------------
     # MICROPHONE VOLUME
@@ -436,6 +512,19 @@ def make_classifier(
 
         return ModelClassifier()
 
+    if mode == "stream":
+
+        global stream_classifier
+
+        stream_classifier = StreamFedClassifier()
+
+        log.info(
+            "CLASSIFIER=stream: classifying AUD: audio frames "
+            "from the USB relay on this board"
+        )
+
+        return stream_classifier
+
     if mode == "bridge":
 
         log.info(
@@ -448,7 +537,64 @@ def make_classifier(
 
     raise SystemExit(
         f"Unknown CLASSIFIER={mode!r} "
-        "(expected bridge | model | scripted)"
+        "(expected bridge | model | stream | scripted)"
+    )
+
+
+# =============================================================================
+# WAV REPLAY (laptop test of the AUD: path, no Mac / board needed)
+# =============================================================================
+
+def replay_wav(
+    path: str,
+    manager: AlertManager,
+    realtime: bool = False
+) -> None:
+
+    from edge_audio import config as C
+    from edge_audio.features import load_audio
+
+    if stream_classifier is None:
+        raise SystemExit(
+            "--replay-wav needs CLASSIFIER=stream"
+        )
+
+    audio = load_audio(path)                      # any format -> 16 kHz mono float32
+    block = int(AUDIO_BLOCK_S * C.SAMPLE_RATE)
+    n_frames = (len(audio) + block - 1) // block
+
+    log.info(
+        "Replaying %s: %.1f s as %d AUD: frames%s",
+        path,
+        len(audio) / C.SAMPLE_RATE,
+        n_frames,
+        " in real time" if realtime else ""
+    )
+
+    for start in range(0, len(audio), block):
+
+        # never drop frames during a replay: throttle instead
+        while stream_classifier.backlog() > 16:
+            time.sleep(0.01)
+
+        handle_command(
+            encode_audio_frame(audio[start:start + block]),
+            manager
+        )
+
+        if realtime:
+            time.sleep(AUDIO_BLOCK_S)
+
+    deadline = time.monotonic() + 30
+    while stream_classifier.backlog() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    time.sleep(0.5)                                # let the last window finish
+
+    log.info(
+        "Replay done: %.1f s received, %d windows classified, %d frames dropped",
+        stream_classifier.received_s,
+        stream_classifier.windows,
+        stream_classifier.dropped
     )
 
 
@@ -515,6 +661,19 @@ def parse_args(argv=None) -> argparse.Namespace:
         help="DEBUG / INFO / WARNING"
     )
 
+    parser.add_argument(
+        "--replay-wav",
+        metavar="PATH",
+        help="push an audio file through the AUD: path as if the USB relay sent it "
+             "(implies CLASSIFIER=stream; combine with --dry-run)"
+    )
+
+    parser.add_argument(
+        "--replay-realtime",
+        action="store_true",
+        help="with --replay-wav: pace the frames at real time"
+    )
+
     return parser.parse_args(argv)
 
 
@@ -545,6 +704,9 @@ def main(argv=None) -> int:
 
     if args.demo:
         settings.classifier = "scripted"
+
+    if args.replay_wav:
+        settings.classifier = "stream"
 
     if args.log_level:
         settings.log_level = args.log_level.upper()
@@ -678,9 +840,19 @@ def main(argv=None) -> int:
 
     try:
 
-        run_forever(
-            stop
-        )
+        if args.replay_wav:
+
+            replay_wav(
+                args.replay_wav,
+                manager,
+                realtime=args.replay_realtime
+            )
+
+        else:
+
+            run_forever(
+                stop
+            )
 
     finally:
 

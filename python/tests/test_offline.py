@@ -9,6 +9,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from alert_manager import AlertManager
@@ -63,7 +65,8 @@ def make_manager(**overrides):
 
 # -------------------------------------------------------------------- events
 def test_all_eight_events_are_supported():
-    assert len(EVENTS) == 8
+    # the original eight, plus loud_sound and unfamiliar_voice
+    assert len(EVENTS) == len(CLASS_ORDER) >= 8
     assert set(EVENTS) == set(CLASS_ORDER)
     for event_id, spec in EVENTS.items():
         assert normalize_label(event_id) == event_id
@@ -86,6 +89,9 @@ def test_classifier_output_labels_normalise():
         "fire alarm": "smoke_alarm_beeping",
         "CO alarm": "carbon_monoxide_alarm",
         "fall_detected": "thud",
+        "unfamiliar_voice": "unfamiliar_voice",
+        "Unfamiliar voice": "unfamiliar_voice",
+        "stranger": "unfamiliar_voice",
         0: "smoke_alarm_beeping",
         7: "electrical_buzzing_or_sparking",
     }
@@ -94,8 +100,38 @@ def test_classifier_output_labels_normalise():
 
 
 def test_unknown_labels_are_rejected():
-    for raw in ("background", "silence", "dog_bark", "", None, 8, -1, True):
+    # "UNKNOWN" / "BACKGROUND" / "KNOWN_VOICE" are what the on-board classifier
+    # emits for windows that must NOT alert.
+    for raw in ("background", "silence", "dog_bark", "UNKNOWN", "KNOWN_VOICE", "known_voice",
+                "", None, len(CLASS_ORDER), -1, True):
         assert normalize_label(raw) is None, raw
+
+
+# ------------------------------------------------------------ stream classifier
+def test_audio_frame_roundtrip():
+    np = pytest.importorskip("numpy")
+    from main import decode_audio_frame, encode_audio_frame
+
+    samples = np.sin(np.linspace(0, 40, 4000)).astype(np.float32) * 0.5
+    line = encode_audio_frame(samples)
+    assert line.startswith("AUD:")
+    back = decode_audio_frame(line)
+    assert back.shape == samples.shape
+    assert np.max(np.abs(back - samples)) < 1e-4
+
+
+def test_stream_classifier_is_quiet_on_silence():
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("edge_audio.infer_wav")
+    try:
+        from edge_audio.unoq_stream import StreamClassifier
+        clf = StreamClassifier()
+    except Exception as exc:  # no TFLite interpreter or model on this machine
+        pytest.skip(f"edge_audio runtime unavailable: {exc}")
+    label, confidence = clf.predict(np.zeros(32000, dtype=np.float32))
+    assert label == "UNKNOWN"
+    assert normalize_label(label) is None
+    assert 0.0 <= confidence <= 1.0
 
 
 # ---------------------------------------------------------- notification svc

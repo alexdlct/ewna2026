@@ -137,3 +137,61 @@ The 8×13 matrix is single-colour; the colour hints are for the four on-board RG
 * Network errors are logged and returned as `NotificationResult(ok=False, error=...)`, never raised.
 * `Bridge.call` failures (MCU not flashed yet, method missing) are logged and ignored.
 * `ALERT_DRY_RUN=1` logs the exact message that would go out — use it for every demo rehearsal.
+
+## On-board classifier (CLASSIFIER=stream)
+
+The TinyAudioNet model from `edge_audio_mvp/` runs inside this app, on the
+UNO Q's Linux side. Audio reaches it over the existing relay path; only the
+payload changed from a volume number to the audio itself:
+
+```
+Mac: Sound/audio_sender.py  --AUD:<base64 int16, 16 kHz, 0.25 s>-->  USB serial
+UNO Q host: Sound/usb_relay.py  --same bytes-->  TCP :8765
+container: main.py handle_command()  ->  StreamFedClassifier (classifier.py)
+           2 s window every 0.5 s -> INT8 TFLite -> threshold 0.70, 2-of-3
+           agreement, known-voice prior, cooldown -> AlertManager.handle_detection
+           -> LED (Bridge.notify "sound_event") + SMS
+```
+
+Setup:
+
+1. From `edge_audio_mvp/`: `python deploy.py` copies the runtime and
+   `model_int8.tflite` into `python/edge_audio/` (re-run after every retrain).
+2. `pip install numpy` plus one TFLite interpreter (`tflite-runtime` or
+   `ai-edge-litert`, see `requirements.txt`).
+3. `.env`: `CLASSIFIER=stream`, `ALERT_THRESHOLD=0.70`.
+4. On the Mac, `Sound/audio_sender.py` now sends `AUD:` frames (`SEND_AUDIO`)
+   and, optionally, the old `VOL:` line (`SEND_VOLUME`).
+
+Model output -> event id -> LED command:
+
+| model class | event id | LED |
+|---|---|---|
+| GLASS_BREAK | `glass_breaking` | GLASS |
+| ALARM | `smoke_alarm_beeping` | ALARM |
+| LOUD_THUD | `thud` | THUD |
+| UNFAMILIAR_VOICE | `unfamiliar_voice` | VOICE |
+| KNOWN_VOICE, BACKGROUND, UNKNOWN | ignored | - |
+
+Only *confirmed* detections leave the classifier; everything else is emitted
+as `UNKNOWN`, which `normalize_label()` rejects. Confirmed detections that are
+inside the classifier's own 2 s cooldown are written to
+`edge_audio/logs/detections_*.csv` but not re-emitted.
+
+Test the whole container path on a laptop, no Mac relay or board needed:
+
+```bash
+python main.py --replay-wav ../dataset/ESC-50-master/audio/5-221528-A-39.wav --dry-run
+python main.py --replay-wav path/to/voice.m4a --dry-run --log-level DEBUG
+```
+
+`--replay-wav` pushes the file through `handle_command()` as `AUD:` lines,
+exactly as the relay would, and the log shows the accepted decisions and the
+dry-run notifications.
+
+`CLASSIFIER=model` uses the same runtime with a microphone attached to the
+UNO Q instead of the relay (`ModelClassifier` in `classifier.py`).
+
+LED note: the deployed sketch provides `sound_event`, not `show_emergency`, so
+`led_bridge.py` now sends `Bridge.notify("sound_event", "<COMMAND>")` by
+default; `LED_PROTOCOL=rpc` restores the old contract.

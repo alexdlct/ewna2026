@@ -2,7 +2,15 @@
 requests>=2.31
 python-dotenv>=1.0
 
-# Only needed if the model runs in Python (CLASSIFIER=model). On the board:
-#   sudo apt install libportaudio2
-# numpy>=1.26
+# On-board classifier (CLASSIFIER=stream or model): TinyAudioNet runtime in edge_audio/
+numpy>=1.26
+# ...plus ONE TFLite interpreter, whichever has a wheel for the container's Python:
+#   pip install tflite-runtime       (aarch64 wheels up to Python 3.11)
+#   pip install ai-edge-litert       (newer Pythons)
+# edge_audio/infer_wav.py tries tflite_runtime, then ai_edge_litert, then tensorflow.
+
+# CLASSIFIER=model only (microphone attached to the UNO Q): sudo apt install libportaudio2
 # sounddevice>=0.4
+
+# main.py --replay-wav on a laptop (reads WAV/FLAC/MP3; PyAV for .m4a)
+# soundfile>=0.12

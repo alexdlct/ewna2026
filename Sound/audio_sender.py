@@ -1,3 +1,4 @@
+import base64
 import sounddevice as sd
 import numpy as np
 import serial
@@ -13,9 +14,18 @@ import sys
 
 MIC_NAME = "UAC 1.0 Microphone & HID-Mediakey"
 
-SAMPLE_RATE = 48000
+# 16 kHz is what the on-board TinyAudioNet classifier expects (CoreAudio
+# resamples if the mic only offers 48 kHz).
+SAMPLE_RATE = 16000
 BLOCK_DURATION = 0.25
 BLOCK_SIZE = int(SAMPLE_RATE * BLOCK_DURATION)
+
+# What goes over the wire, one line per block:
+#   AUD:<base64 int16 PCM>   the audio itself, for the classifier (CLASSIFIER=stream)
+#   VOL:<rms>                legacy volume-only line for the LOUD detector
+# ~43 KB/s with audio on; the USB virtual serial port handles that easily.
+SEND_AUDIO = True
+SEND_VOLUME = False
 
 BAUD_RATE = 115200
 PREFERRED_PORT = "/dev/cu.usbmodem22798816512"
@@ -386,14 +396,22 @@ def main():
         print(f"USB MIC VOLUME: {rms:.4f}")
 
         # ----------------------------------------------------
-        # Send volume to UNO Q
+        # Send to UNO Q: audio frames for the on-board
+        # classifier and/or the legacy volume line
         # ----------------------------------------------------
 
-        message = f"VOL:{rms:.4f}\n"
+        message = ""
+
+        if SEND_VOLUME:
+            message += f"VOL:{rms:.4f}\n"
+
+        if SEND_AUDIO:
+            pcm = (np.clip(audio, -1.0, 1.0) * 32767).astype("<i2")
+            message += "AUD:" + base64.b64encode(pcm.tobytes()).decode("ascii") + "\n"
 
         try:
 
-            ser.write(message.encode())
+            ser.write(message.encode("ascii"))
             ser.flush()
 
         except serial.SerialException:

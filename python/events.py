@@ -49,7 +49,8 @@ CLASS_ORDER = [
     "thud",
     "security_alarm_or_siren",
     "electrical_buzzing_or_sparking",
-    "loud_sound"
+    "loud_sound",
+    "unfamiliar_voice",
 ]
 
 _SPECS = [
@@ -152,6 +153,17 @@ _SPECS = [
         sms_text="Sound Guardian: A loud sound was detected.",
         default_threshold=0.8,
     ),
+    EventSpec(
+        id="unfamiliar_voice",
+        display_name="Unfamiliar voice",
+        meaning="Someone who is not the enrolled resident is speaking",
+        acoustic_class="Vocal / speaker identity (TinyAudioNet KNOWN_VOICE vs UNFAMILIAR_VOICE)",
+        led_icon="voice",
+        rgb_hint=(255, 0, 120),
+        severity=Severity.HIGH,
+        sms_text="Sound Guardian: 🗣️ An unfamiliar voice was detected.",
+        default_threshold=0.70,  # the classifier already confirms 2 of 3 windows at >= 0.70
+    ),
 ]
 
 EVENTS: dict[str, EventSpec] = {spec.id: spec for spec in _SPECS}
@@ -215,6 +227,12 @@ _ALIASES = {
     "buzzing": "electrical_buzzing_or_sparking",
     "electric_arc": "electrical_buzzing_or_sparking",
     "loud": "loud_sound",
+    # unfamiliar voice (TinyAudioNet UNFAMILIAR_VOICE class)
+    "unknown_voice": "unfamiliar_voice",
+    "unfamiliar_speaker": "unfamiliar_voice",
+    "unrecognized_voice": "unfamiliar_voice",
+    "stranger": "unfamiliar_voice",
+    "stranger_voice": "unfamiliar_voice",
 }
 
 # Last-resort keyword rules, checked in order. Specific words first so that
@@ -228,6 +246,7 @@ _KEYWORD_RULES = [
     (("thud", "thump", "fall", "collapse", "impact"), "thud"),
     (("siren", "security", "intrusion", "burglar"), "security_alarm_or_siren"),
     (("electric", "buzz", "spark", "arcing"), "electrical_buzzing_or_sparking"),
+    (("unfamiliar", "stranger", "unrecognized", "unrecognised"), "unfamiliar_voice"),
 ]
 
 
