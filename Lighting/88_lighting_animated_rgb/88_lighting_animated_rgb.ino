@@ -51,6 +51,21 @@ uint32_t WHITE;
 // 8x8 PATTERNS
 // ============================================================
 
+// ============================================================
+// BATMAN SYMBOL
+// ============================================================
+
+const uint8_t bat_symbol[64] = {
+  1,0,0,0,0,0,0,1,
+  1,1,0,0,0,0,1,1,
+  1,1,1,0,0,1,1,1,
+  0,1,1,1,1,1,1,0,
+  0,1,1,1,1,1,1,0,
+  0,0,1,1,1,1,0,0,
+  0,0,1,0,0,1,0,0,
+  0,0,0,1,1,0,0,0
+};
+
 // LEFT ARROW
 const uint8_t arrow_left[64] = {
   0,0,0,1,0,0,0,0,
@@ -339,6 +354,38 @@ void drawShifted(
   matrix.show();
 }
 
+
+// ============================================================
+// BAT SIGNAL
+// ============================================================
+
+void animateBat() {
+
+  // Flash like a signal appearing in the sky
+  for (int i = 0; i < 3; i++) {
+
+    drawPattern(
+      bat_symbol,
+      YELLOW
+    );
+
+    delay(400);
+
+    clearMatrix();
+
+    delay(180);
+  }
+
+  // Hold final bat symbol
+  drawPattern(
+    bat_symbol,
+    YELLOW
+  );
+
+  delay(1200);
+
+  clearMatrix();
+}
 
 // ============================================================
 // LEFT
@@ -656,6 +703,103 @@ void animateLoud() {
   clearMatrix();
 }
 
+// ============================================================
+// MORSE CODE SOS
+//
+// S = ...
+// O = ---
+// S = ...
+//
+// dot  = 1 unit
+// dash = 3 units
+// gap between symbols = 1 unit
+// gap between letters = 3 units
+// ============================================================
+
+const int MORSE_UNIT = 180;
+
+
+// ------------------------------------------------------------
+// MORSE DOT
+// ------------------------------------------------------------
+
+void morseDot() {
+
+  fillMatrix(RED);
+
+  delay(MORSE_UNIT);
+
+  clearMatrix();
+
+  delay(MORSE_UNIT);
+}
+
+
+// ------------------------------------------------------------
+// MORSE DASH
+// ------------------------------------------------------------
+
+void morseDash() {
+
+  fillMatrix(RED);
+
+  delay(MORSE_UNIT * 3);
+
+  clearMatrix();
+
+  delay(MORSE_UNIT);
+}
+
+
+// ------------------------------------------------------------
+// MORSE SOS
+// ------------------------------------------------------------
+
+void animateMorseSOS() {
+
+  // --------------------
+  // S = ...
+  // --------------------
+
+  morseDot();
+  morseDot();
+  morseDot();
+
+
+  // We already waited 1 unit after last dot.
+  // Add 2 more = 3 units between letters.
+
+  delay(MORSE_UNIT * 2);
+
+
+  // --------------------
+  // O = ---
+  // --------------------
+
+  morseDash();
+  morseDash();
+  morseDash();
+
+
+  delay(MORSE_UNIT * 2);
+
+
+  // --------------------
+  // S = ...
+  // --------------------
+
+  morseDot();
+  morseDot();
+  morseDot();
+
+
+  // Final pause
+
+  delay(MORSE_UNIT * 6);
+
+  clearMatrix();
+}
+
 
 // ============================================================
 // SOUND GUARDIAN EVENT HANDLER
@@ -676,15 +820,33 @@ void handleEvent(String command) {
     animateSOS();
   }
 
+  // BAT SIGNAL
+  else if (
+    command == "BAT" ||
+    command == "BAT_SIGNAL"
+  ) {
+
+    animateBat();
+  }
+
+
+  // MORSE SOS
+  else if (
+    command == "MORSE" ||
+    command == "MORSE_SOS"
+  ) {
+
+    animateMorseSOS();
+  }
+
 
   // SCREAM / VOICE
   else if (
     command == "VOICE" ||
     command == "SCREAM"
   ) {
-
     animateVoice();
-  }
+  } 
 
 
   // FALL / THUD
