@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.DS_Store
 
 signal_processing/logs/*.csv
 __pycache__/
