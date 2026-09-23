@@ -49,6 +49,7 @@ CLASS_ORDER = [
     "thud",
     "security_alarm_or_siren",
     "electrical_buzzing_or_sparking",
+    "loud_sound"
 ]
 
 _SPECS = [
@@ -141,15 +142,16 @@ _SPECS = [
         default_threshold=0.75,
     ),
     EventSpec(
-    id="loud_sound",
-    display_name="Loud sound",
-    meaning="Sound exceeded the configured volume threshold",
-    acoustic_class="Volume threshold",
-    led_icon="danger",
-    rgb_hint=(255, 170, 0),
-    severity=Severity.MEDIUM,
-    sms_text="Sound Guardian: A loud sound was detected.",
-    default_threshold=0.5,),
+        id="loud_sound",
+        display_name="Loud sound",
+        meaning="Sound exceeded the configured volume threshold",
+        acoustic_class="Volume threshold",
+        led_icon="danger",
+        rgb_hint=(255, 170, 0),
+        severity=Severity.MEDIUM,
+        sms_text="Sound Guardian: A loud sound was detected.",
+        default_threshold=0.5,
+    ),
 ]
 
 EVENTS: dict[str, EventSpec] = {spec.id: spec for spec in _SPECS}
