@@ -48,7 +48,7 @@ log = logging.getLogger("sound_guardian")
 HOST = "0.0.0.0"
 PORT = 8765
 
-LOUD_THRESHOLD = 0.05
+LOUD_THRESHOLD = 0.8
 
 commands = queue.Queue()
 

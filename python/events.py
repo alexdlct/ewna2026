@@ -150,7 +150,7 @@ _SPECS = [
         rgb_hint=(255, 170, 0),
         severity=Severity.MEDIUM,
         sms_text="Sound Guardian: A loud sound was detected.",
-        default_threshold=0.5,
+        default_threshold=0.8,
     ),
 ]
 
