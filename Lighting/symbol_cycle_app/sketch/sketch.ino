@@ -25,7 +25,7 @@ Adafruit_NeoPixel matrix(
   NEO_GRB + NEO_KHZ800
 );
 
-const uint8_t BRIGHTNESS = 40;
+const uint8_t BRIGHTNESS = 15;
 
 
 

@@ -40,6 +40,7 @@ ORDER = [
 SKIP = {"animateAll"}          # the DEMO cycle of the main sketch; we write our own
 PAUSE_BETWEEN_MS = 600
 PAUSE_BETWEEN_ROUNDS_MS = 1500
+BRIGHTNESS = 15                # 0-255; overrides the main sketch's value for this app
 
 
 def banner_before(text, idx):
@@ -60,8 +61,12 @@ def main():
     cut = src.index("void handleEvent(")
     head = src[:banner_before(src, cut)]
 
-    # 2. remove the Router Bridge include and the STANDBY MODE block
+    # 2. remove the Router Bridge include and the STANDBY MODE block; set this app's brightness
     head = head.replace("#include <Arduino_RouterBridge.h>\n", "")
+    head, n_bright = re.subn(r"^const uint8_t BRIGHTNESS = \d+;", f"const uint8_t BRIGHTNESS = {BRIGHTNESS};",
+                             head, flags=re.M)
+    if n_bright != 1:
+        sys.exit("could not find the BRIGHTNESS line in the main sketch")
     head = re.sub(r"// =+\n// STANDBY MODE\n// =+\n.*?#define STANDBY_CYCLE \d+\n", "", head, flags=re.S)
     head = head.replace("// App Lab sends:\n//\n// Bridge.notify(\"sound_event\", \"GLASS\")\n//\n"
                         "// Router Bridge:\n// App Lab -> MCU -> RGB Matrix\n",
