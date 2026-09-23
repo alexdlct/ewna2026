@@ -1,0 +1,5 @@
+name: Symbol Cycle
+description: "Standby demo: cycles every Sound Guardian symbol on the 8x8 RGB matrix (data pin 6). No Router Bridge, no microphone."
+ports: []
+bricks: []
+icon: 💡
